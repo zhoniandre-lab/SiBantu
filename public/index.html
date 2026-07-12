@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiBantu - Semua Urusan Jadi Mudah</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e8f5e9;
+            color: #333;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            color: white;
+            padding: 12px 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .header .tagline {
+            font-size: 12px;
+            opacity: 0.95;
+            margin-top: 2px;
+        }
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 160px;
+        }
+        .bubble {
+            max-width: 80%;
+            padding: 12px 14px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            animation: muncul 0.3s ease;
+        }
+        @keyframes muncul {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bubble.bot {
+            background: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .bubble.user {
+            background: #2e7d32;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-row {
+            display: flex;
+            flex-direction: column;
+        }
+        .chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            margin-bottom: 12px;
+        }
+        .chip {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            color: #1b5e20;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .chip:active { background: #c8e6c9; }
+        .chip.primary {
+            background: #2e7d32;
+            color: white;
+            border: none;
+        }
+        .chip.secondary {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            color: #e65100;
+        }
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 14px;
+        }
+        .input-row button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .quick-buttons {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .quick-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 8px 14px;
+            border-radius: 18px;
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .cart-box {
+            background: #fff8e1;
+            border: 1px dashed #ff9800;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .cart-box h4 {
+            color: #e65100;
+            margin-bottom: 6px;
+        }
+        .cart-item-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .total-big {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1b5e20;
+            margin-top: 8px;
+        }
+        .emoji { font-size: 18px; }
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 10px 14px;
+            background: white;
+            border-radius: 16px;
+            width: fit-content;
+            margin-bottom: 12px;
+            border-bottom-left-radius: 4px;
+        }
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: #999;
+            border-radius: 50%;
+            animation: typing 1s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 100% { opacity: 0.3; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-4px); }
+        }
+        .alamat-box {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin-top: 8px;
+            color: #1565c0;
+        }
+        .status-box {
+            background: #e8f5e9;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin-bottom: 10px;
+            color: #1b5e20;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🤝 SiBantu</div>
+        <div class="tagline">Semua Urusan Jadi Mudah</div>
+    </div>
+
+    <div class="chat-area" id="chat-area">
+        <div class="chat-row">
+            <div class="bubble bot">
+                <div class="status-box">
+                    🤖 <b>Mode AI Aktif</b> via Vercel
+                </div>
+                Halo! Saya <b>SiBantu</b> 🙏<br><br>
+                Saya bisa bantu Bu pesan bahan pokok harian. Kami antar ke <b>Desa Jembatan Dua</b> dan sekitarnya.<br>
+                Mau belanja apa hari ini? Bisa ketik bebas atau pilih menu di bawah.
+                <div class="alamat-box">📍 Area antar: Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu</div>
+            </div>
+            <div class="chip-list">
+                <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-row">
+            <input type="text" id="pesan-user" placeholder="Ketik di sini, Bu... (contoh: kacang panjang 2, ikan nila 1)" onkeypress="if(event.key==='Enter'){kirimPesanManual()}">
+            <button onclick="kirimPesanManual()">Kirim</button>
+        </div>
+        <div class="quick-buttons">
+            <button class="quick-btn" onclick="tampilkanMenu()">📋 Lihat Semua Menu</button>
+            <button class="quick-btn" onclick="cekKeranjang()">🛒 Lihat Keranjang</button>
+            <button class="quick-btn" onclick="bantuan()">❓ Bantuan</button>
+        </div>
+    </div>
+
+    <script>
+        const AI_MODEL = 'glm-4.7';
+
+        const produkData = [
+            { id: 1, nama: 'Kacang Panjang', kategori: 'sayur', harga: 5000, unit: '250 gram', emoji: '🥬', alias: ['kacang panjang', 'kacang'] },
+            { id: 2, nama: 'Kacang Ijo', kategori: 'sayur', harga: 8000, unit: '250 gram', emoji: '🫛', alias: ['kacang ijo', 'kacang hijau'] },
+            { id: 3, nama: 'Bayam Hijau', kategori: 'sayur', harga: 4000, unit: '1 ikat', emoji: '🌿', alias: ['bayam', 'bayam hijau'] },
+            { id: 4, nama: 'Terong Ungu', kategori: 'sayur', harga: 6000, unit: '250 gram', emoji: '🍆', alias: ['terong', 'terong ungu'] },
+            { id: 5, nama: 'Cabai Merah', kategori: 'sayur', harga: 12000, unit: '100 gram', emoji: '🌶️', alias: ['cabai', 'cabe', 'cabai merah'] },
+            { id: 6, nama: 'Ikan Nila', kategori: 'ikan', harga: 25000, unit: '1 ekor', emoji: '🐟', alias: ['ikan nila', 'nila'] },
+            { id: 7, nama: 'Ikan Lele', kategori: 'ikan', harga: 18000, unit: '1 ekor', emoji: '🐟', alias: ['ikan lele', 'lele'] },
+            { id: 8, nama: 'Ikan Tongkol', kategori: 'ikan', harga: 22000, unit: '500 gram', emoji: '🐠', alias: ['ikan tongkol', 'tongkol'] },
+            { id: 9, nama: 'Ikan Bandeng', kategori: 'ikan', harga: 28000, unit: '1 ekor', emoji: '🐟', alias: ['ikan bandeng', 'bandeng'] },
+            { id: 10, nama: 'Apel Fuji', kategori: 'buah', harga: 15000, unit: '250 gram', emoji: '🍎', alias: ['apel', 'apel fuji'] },
+            { id: 11, nama: 'Pisang Cavendish', kategori: 'buah', harga: 12000, unit: '500 gram', emoji: '🍌', alias: ['pisang', 'pisang cavendish'] },
+            { id: 12, nama: 'Jeruk Sunkist', kategori: 'buah', harga: 18000, unit: '500 gram', emoji: '🍊', alias: ['jeruk', 'jeruk sunkist'] },
+            { id: 13, nama: 'Beras Premium', kategori: 'sembako', harga: 15000, unit: '1 kg', emoji: '🍚', alias: ['beras', 'beras premium'] },
+            { id: 14, nama: 'Minyak Goreng', kategori: 'sembako', harga: 17000, unit: '1 liter', emoji: '🛢️', alias: ['minyak', 'minyak goreng'] },
+            { id: 15, nama: 'Gula Pasir', kategori: 'sembako', harga: 16000, unit: '1 kg', emoji: '🧂', alias: ['gula', 'gula pasir'] },
+            { id: 16, nama: 'Telur Ayam', kategori: 'sembako', harga: 28000, unit: '1 kg', emoji: '🥚', alias: ['telur', 'telur ayam'] },
+            { id: 17, nama: 'Ayam Potong', kategori: 'daging', harga: 45000, unit: '1 kg', emoji: '🍗', alias: ['ayam', 'ayam potong'] },
+            { id: 18, nama: 'Daging Sapi', kategori: 'daging', harga: 120000, unit: '500 gram', emoji: '🥩', alias: ['daging sapi', 'sapi'] },
+        ];
+
+        const rekomendasiMap = {
+            'sayur': [6, 13, 17],
+            'ikan': [1, 13, 16],
+            'buah': [13, 16],
+            'sembako': [1, 6, 17],
+            'daging': [1, 13]
+        };
+
+        let keranjang = {};
+        let sedangMemproses = false;
+
+        function formatRupiah(angka) {
+            return 'Rp ' + angka.toLocaleString('id-ID');
+        }
+
+        function scrollKeBawah() {
+            const chat = document.getElementById('chat-area');
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function tunjukkanTyping(kemudian) {
+            const chat = document.getElementById('chat-area');
+            const typingId = 'typing-' + Date.now();
+            chat.insertAdjacentHTML('beforeend', `
+                <div class="chat-row" id="${typingId}">
+                    <div class="typing"><span></span><span></span><span></span></div>
+                </div>
+            `);
+            scrollKeBawah();
+            setTimeout(() => {
+                const el = document.getElementById(typingId);
+                if (el) el.remove();
+                kemudian();
+            }, 700);
+        }
+
+        function tambahBalasanUser(teks) {
+            const chat = document.getElementById('chat-area');
+            chat.insertAdjacentHTML('beforeend', `
+                <div class="chat-row"><div class="bubble user">${teks}</div></div>
+            `);
+            scrollKeBawah();
+        }
+
+        function tambahBalasanBot(teks, tombolHTML = '') {
+            const chat = document.getElementById('chat-area');
+            chat.insertAdjacentHTML('beforeend', `
+                <div class="chat-row">
+                    <div class="bubble bot">${teks}</div>
+                    ${tombolHTML ? '<div class="chip-list">' + tombolHTML + '</div>' : ''}
+                </div>
+            `);
+            scrollKeBawah();
+        }
+
+        function pilihKategori(kat) {
+            const kategoriNama = { sayur: 'Sayur', ikan: 'Ikan', buah: 'Buah', sembako: 'Sembako', daging: 'Daging' };
+            tambahBalasanUser('Mau beli ' + kategoriNama[kat].toLowerCase() + ', Buk.');
+            
+            tunjukkanTyping(() => {
+                const items = produkData.filter(p => p.kategori === kat);
+                let teks = `Ini pilihan ${kategoriNama[kat]} kita, Bu. Pilih aja yang mau dibeli:`;
+                let tombol = '';
+                items.forEach(p => {
+                    tombol += `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} ${p.nama}<br><small>${formatRupiah(p.harga)}</small></button>`;
+                });
+                tombol += `<button class="chip secondary" onclick="tampilkanMenu()">🏠 Menu Lain</button>`;
+                tambahBalasanBot(teks, tombol);
+            });
+        }
+
+        function tambahKeKeranjang(id) {
+            const produk = produkData.find(p => p.id === id);
+            if (!keranjang[id]) {
+                keranjang[id] = { ...produk, qty: 1 };
+            } else {
+                keranjang[id].qty++;
+            }
+            
+            tambahBalasanUser(`${produk.emoji} ${produk.nama} ${produk.unit}`);
+            
+            tunjukkanTyping(() => {
+                let teks = `Oke, <b>${produk.nama}</b> sudah ditambah, Bu. Harganya ${formatRupiah(produk.harga)} per ${produk.unit}.<br><br>`;
+                
+                const rekomen = rekomendasiMap[produk.kategori] || [];
+                const rekomProduk = produkData.filter(p => rekomen.includes(p.id));
+                
+                let tombol = '';
+                if (rekomProduk.length > 0) {
+                    teks += `Mau tambah apa lagi, Bu? Ini yang biasanya dibeli bareng ${produk.nama.toLowerCase()}:`;
+                    rekomProduk.forEach(p => {
+                        tombol += `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} ${p.nama}</button>`;
+                    });
+                } else {
+                    teks += `Mau tambah apa lagi, Bu?`;
+                }
+                
+                tombol += `<button class="chip primary" onclick="cekKeranjang()">🛒 Udah Cukup, Lihat Total</button>`;
+                tombol += `<button class="chip secondary" onclick="tampilkanMenu()">📋 Menu Lain</button>`;
+                
+                tambahBalasanBot(teks, tombol);
+            });
+        }
+
+        function cekKeranjang() {
+            const items = Object.values(keranjang);
+            if (items.length === 0) {
+                tunjukkanTyping(() => {
+                    tambahBalasanBot('Keranjangnya masih kosong, Bu. Mau beli apa dulu?', `
+                        <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                        <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                        <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                        <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                        <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                    `);
+                });
+                return;
+            }
+            
+            tambahBalasanUser('Udah cukup, Buk. Totalnya berapa?');
+            
+            tunjukkanTyping(() => {
+                tampilkanTotalDanTombol();
+            });
+        }
+
+        function hitungTotal() {
+            const items = Object.values(keranjang);
+            let subtotal = 0;
+            items.forEach(item => subtotal += item.harga * item.qty);
+            const ongkir = 5000;
+            const diskon = 2000;
+            const layanan = 2000;
+            const total = subtotal + ongkir - diskon + layanan;
+            return { subtotal, ongkir, diskon, layanan, total };
+        }
+
+        function tampilkanTotalDanTombol(pesanTambahan = '') {
+            const items = Object.values(keranjang);
+            const { subtotal, ongkir, diskon, layanan, total } = hitungTotal();
+            
+            let itemList = '';
+            items.forEach(item => {
+                const totalItem = item.harga * item.qty;
+                itemList += `<div class="cart-item-line"><span>${item.emoji} ${item.nama} x${item.qty}</span><span>${formatRupiah(totalItem)}</span></div>`;
+            });
+            
+            let teks = `${pesanTambahan ? pesanTambahan + '<br><br>' : ''}Ini rinciannya, Bu:<br><div class="cart-box">
+                <h4>🛒 Keranjang Belanja</h4>
+                ${itemList}
+                <hr style="margin:8px 0;border:none;border-top:1px dashed #ffcc80;">
+                <div class="cart-item-line"><span>Subtotal</span><span>${formatRupiah(subtotal)}</span></div>
+                <div class="cart-item-line"><span>Biaya antar</span><span>${formatRupiah(ongkir)}</span></div>
+                <div class="cart-item-line"><span>Diskon hari ibu</span><span>-${formatRupiah(diskon)}</span></div>
+                <div class="cart-item-line"><span>Biaya layanan</span><span>${formatRupiah(layanan)}</span></div>
+                <div class="total-big">Total: ${formatRupiah(total)}</div>
+            </div>`;
+            
+            teks += `Siapkan uang pas ya, Bu. Mau pesan sekarang?`;
+            
+            let tombol = `
+                <button class="chip primary" onclick="checkout()">✅ Pesan Sekarang via WhatsApp</button>
+                <button class="chip" onclick="tambahLagi()">➕ Tambah Lagi</button>
+                <button class="chip secondary" onclick="kosongkanKeranjang()">🗑️ Hapus Semua</button>
+            `;
+            
+            tambahBalasanBot(teks, tombol);
+        }
+
+        function tambahLagi() {
+            tambahBalasanUser('Mau tambah lagi, Buk.');
+            tampilkanMenu();
+        }
+
+        function tampilkanMenu() {
+            tunjukkanTyping(() => {
+                tambahBalasanBot('Mau beli kategori apa, Bu?', `
+                    <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                    <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                    <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                    <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                    <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                `);
+            });
+        }
+
+        function kosongkanKeranjang() {
+            keranjang = {};
+            tambahBalasanUser('Hapus semua, Buk.');
+            tunjukkanTyping(() => {
+                tambahBalasanBot('Oke, keranjang sudah dikosongkan. Mau beli apa lagi, Bu?', `
+                    <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                    <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                    <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                    <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                    <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                `);
+            });
+        }
+
+        function checkout() {
+            const items = Object.values(keranjang);
+            if (items.length === 0) return;
+            
+            const { subtotal, ongkir, diskon, layanan, total } = hitungTotal();
+            
+            let pesanan = '*Pesanan dari SiBantu*%0A%0A';
+            pesanan += '*Alamat:* Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu%0A%0A';
+            pesanan += '*Pesanan:*%0A';
+            items.forEach(item => {
+                pesanan += `• ${item.nama} x${item.qty} = ${formatRupiah(item.harga * item.qty)}%0A`;
+            });
+            pesanan += `%0ASubtotal: ${formatRupiah(subtotal)}%0A`;
+            pesanan += `Biaya antar: ${formatRupiah(ongkir)}%0A`;
+            pesanan += `Diskon hari ibu: -${formatRupiah(diskon)}%0A`;
+            pesanan += `Biaya layanan: ${formatRupiah(layanan)}%0A`;
+            pesanan += `*Total bayar: ${formatRupiah(total)}*%0A%0A`;
+            pesanan += `Terima kasih, Bu! 🙏`;
+            
+            const noAdmin = '6281234567890'; // Ganti nomor WhatsApp admin
+            window.open(`https://wa.me/${noAdmin}?text=${pesanan}`, '_blank');
+            
+            tunjukkanTyping(() => {
+                tambahBalasanBot('Terima kasih sudah pesan di SiBantu, Bu! 🙏<br>Pesannya sudah kami kirim ke WhatsApp. Kami akan segera antar ya.', `
+                    <button class="chip" onclick="location.reload()">🔄 Pesan Lagi</button>
+                `);
+            });
+        }
+
+        function dapatkanRiwayatChat() {
+            const chatArea = document.getElementById('chat-area');
+            const bubbles = chatArea.querySelectorAll('.bubble');
+            const riwayat = [];
+            bubbles.forEach(b => {
+                const peran = b.classList.contains('user') ? 'user' : 'assistant';
+                riwayat.push({ role: peran, content: b.innerText.trim() });
+            });
+            return riwayat;
+        }
+
+        function buatPromptSistem() {
+            const daftarProduk = produkData.map(p => {
+                return `- ${p.nama}: ${formatRupiah(p.harga)} per ${p.unit} (alias: ${p.alias.join(', ')})`;
+            }).join('\n');
+
+            return `Kamu adalah asisten aplikasi "SiBantu" yang ramah dan sederhana. Slogan kami: "Semua Urusan Jadi Mudah". Saat ini kami membantu pembelian bahan pokok rumah tangga di Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu.
+
+DAFTAR PRODUK DAN HARGA:
+${daftarProduk}
+
+BIAYA TAMBAHAN:
+- Biaya antar: Rp 5.000
+- Diskon hari ibu: -Rp 2.000
+- Biaya layanan: Rp 2.000
+
+PERATURAN PENTING:
+1. Jawab dengan bahasa Indonesia sederhana, kayak ngobrol sama ibu-ibu. Panggil "Bu" atau "Pak".
+2. Kalau user mau beli sesuatu, tentukan produk dan jumlahnya.
+3. Kalau jumlah tidak disebutkan, anggap 1.
+4. Setelah menambah barang, TANYA "Mau tambah apa lagi, Bu?" atau tawarkan lihat total.
+5. Kalau user bilang sudah cukup/selesai/itu saja, hitung total dan tampilkan rincian.
+6. Kalau user tanya total, hitung total keranjang saat ini.
+7. Format total: Subtotal + Ongkir Rp 5.000 - Diskon Rp 2.000 + Biaya Layanan Rp 2.000.
+8. Jangan pernah menyebutkan JSON atau teknis ke user.
+9. Kamu HANYA boleh menjual produk dari daftar di atas.
+10. Kalau user tanya barang yang tidak ada, jawab dengan ramah bahwa kami belum jual itu.
+11. Siapkan uang pas ya, Bu.
+
+Kamu harus merespons dalam format JSON seperti ini:
+{
+  "reply": "pesan ramah ke user",
+  "action": "add_to_cart|show_total|show_menu|help|none",
+  "items": [{"id": 1, "qty": 2}],
+  "tanya_tambah": true
+}
+
+- action "add_to_cart" kalau user membeli barang
+- action "show_total" kalau user sudah selesai atau minta total
+- action "show_menu" kalau user minta lihat menu
+- action "help" kalau user tanya cara pakai
+- action "none" kalau cuma chat biasa
+- items hanya diisi kalau action add_to_cart
+- tanya_tambah: true kalau mau nanya "mau tambah apa lagi"`;
+        }
+
+        async function kirimKeAI(teksUser) {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: AI_MODEL,
+                        messages: [
+                            { role: 'system', content: buatPromptSistem() },
+                            ...dapatkanRiwayatChat(),
+                            { role: 'user', content: teksUser }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('AI backend error:', response.status);
+                    return null;
+                }
+
+                const data = await response.json();
+                const content = data.choices[0].message.content;
+                
+                try {
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        return JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                }
+                
+                return { reply: content, action: 'none', items: [], tanya_tambah: false };
+            } catch (error) {
+                console.error('Fetch error:', error);
+                return null;
+            }
+        }
+
+        async function kirimPesanManual() {
+            const input = document.getElementById('pesan-user');
+            const teks = input.value.trim();
+            if (!teks || sedangMemproses) return;
+            
+            sedangMemproses = true;
+            input.value = '';
+            tambahBalasanUser(teks);
+            
+            tunjukkanTyping(async () => {
+                const hasilAI = await kirimKeAI(teks);
+                
+                if (hasilAI) {
+                    if (hasilAI.items && hasilAI.items.length > 0) {
+                        hasilAI.items.forEach(item => {
+                            const produk = produkData.find(p => p.id === item.id);
+                            if (produk) {
+                                keranjang[item.id] = { ...produk, qty: item.qty };
+                            }
+                        });
+                    }
+                    
+                    let tombol = '';
+                    if (hasilAI.action === 'show_total') {
+                        tampilkanTotalDanTombol(hasilAI.reply);
+                    } else if (hasilAI.action === 'show_menu') {
+                        tombol = `
+                            <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                            <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                            <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                            <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                            <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                        `;
+                        tambahBalasanBot(hasilAI.reply, tombol);
+                    } else if (hasilAI.action === 'add_to_cart') {
+                        if (hasilAI.tanya_tambah) {
+                            tombol = `
+                                <button class="chip primary" onclick="cekKeranjang()">🛒 Udah Cukup, Lihat Total</button>
+                                <button class="chip secondary" onclick="tampilkanMenu()">📋 Menu Lain</button>
+                            `;
+                        }
+                        tambahBalasanBot(hasilAI.reply, tombol);
+                    } else if (hasilAI.action === 'help') {
+                        tombol = `<button class="chip primary" onclick="tampilkanMenu()">🛒 Mulai Belanja</button>`;
+                        tambahBalasanBot(hasilAI.reply, tombol);
+                    } else {
+                        tambahBalasanBot(hasilAI.reply, tombol);
+                    }
+                } else {
+                    prosesRuleBased(teks);
+                }
+                
+                sedangMemproses = false;
+            });
+        }
+
+        function prosesRuleBased(teks) {
+            const keyword = teks.toLowerCase();
+            
+            const kataSelesai = ['udh', 'udah', 'sudah', 'cukup', 'selesai', 'itu saja', 'itu aja', 'itu doang', 'cukup sekian', 'ga usah', 'gak usah', 'nggak usah', 'tidak', 'nggak', 'gak', 'tidak usah'];
+            const isSelesai = kataSelesai.some(kata => keyword.includes(kata));
+            
+            if (isSelesai) {
+                cekKeranjang();
+                return;
+            }
+            
+            const cocok = produkData.filter(p => {
+                return p.nama.toLowerCase().includes(keyword) || 
+                       p.alias.some(a => a.toLowerCase().includes(keyword)) ||
+                       p.kategori.toLowerCase().includes(keyword);
+            });
+            
+            if (cocok.length === 1) {
+                tambahKeKeranjang(cocok[0].id);
+            } else if (cocok.length > 1) {
+                let tombol = '';
+                cocok.forEach(p => {
+                    tombol += `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} ${p.nama}</button>`;
+                });
+                tambahBalasanBot('Maksudnya yang mana, Bu? Pilih ya:', tombol);
+            } else {
+                tambahBalasanBot('Maaf, Bu. Saya belum ngerti maksudnya. Pilih dari menu aja ya:', `
+                    <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                    <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                    <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                    <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                    <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                `);
+            }
+        }
+
+        function bantuan() {
+            tambahBalasanUser('Cara pakainya gimana, Buk?');
+            tunjukkanTyping(() => {
+                tambahBalasanBot('Gampang, Bu! Caranya:<br><br>1. Ketik barang yang mau dibeli (contoh: "kacang panjang 2, ikan nila 1")<br>2. Atau pilih menu Sayur/Ikan/Buah/Sembako/Daging<br>3. Kalau sudah cukup, ketik "udah cukup" atau klik "Lihat Keranjang"<br>4. Klik "Pesan Sekarang via WhatsApp"<br>5. Admin kami akan konfirmasi dan antar ke rumah.<br><br>Siapkan uang pas ya, Bu! 🙏', `
+                    <button class="chip primary" onclick="tampilkanMenu()">🛒 Mulai Belanja</button>
+                `);
+            });
+        }
+    </script>
+</body>
+</html>
