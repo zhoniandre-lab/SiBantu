@@ -146,16 +146,22 @@ module.exports = async (req, res) => {
     const model = process.env.AI_MODEL || 'glm-4.7';
     if (!apiKey) return res.status(500).json({ error: 'API key belum diatur.' });
 
-    const payload = JSON.stringify({
-      model,
-      messages: [{ role: 'system', content: buatPrompt(keranjang) }, ...safeMessages],
-      temperature: 0.65,
-      max_tokens: 450
-    });
-
+    const fallbackModel = process.env.AI_FALLBACK_MODEL || 'step-3.5-flash';
+    const daftarModel = [...new Set([model, fallbackModel].filter(Boolean))];
     let status = 500;
     let pesanError = 'Provider tidak merespons.';
-    for (let percobaan = 1; percobaan <= 2; percobaan++) {
+    const modelDicoba = [];
+
+    // Jika jalur model utama bermasalah, pindah otomatis ke model cadangan.
+    for (const modelAktif of daftarModel) {
+      modelDicoba.push(modelAktif);
+      const payload = JSON.stringify({
+        model: modelAktif,
+        messages: [{ role: 'system', content: buatPrompt(keranjang) }, ...safeMessages],
+        temperature: 0.65,
+        max_tokens: 450
+      });
+
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -166,8 +172,11 @@ module.exports = async (req, res) => {
         if (response.ok) {
           const providerData = await response.json();
           const content = providerData?.choices?.[0]?.message?.content;
-          return res.status(200).json(normalisasiHasil(ambilJSON(content)));
+          const hasil = normalisasiHasil(ambilJSON(content));
+          hasil.model_used = modelAktif;
+          return res.status(200).json(hasil);
         }
+
         const text = await response.text();
         status = response.status;
         pesanError = text;
@@ -175,21 +184,24 @@ module.exports = async (req, res) => {
           const parsed = JSON.parse(text);
           pesanError = parsed?.error?.message || parsed?.message || text;
         } catch (_) {}
-        console.error(`AI provider error ${percobaan}:`, status, text);
-        if (![429, 500, 502, 503, 504].includes(status) || percobaan === 2) break;
-        await new Promise(resolve => setTimeout(resolve, 600));
+        console.error(`AI provider error (${modelAktif}):`, status, text);
+
+        // API key benar-benar tidak valid: pergantian model tidak akan membantu.
+        if (status === 401) break;
+        if (![429, 500, 502, 503, 504].includes(status)) break;
+        await new Promise(resolve => setTimeout(resolve, 350));
       } catch (error) {
         status = 504;
         pesanError = error?.message || 'Timeout';
-        if (percobaan === 2) break;
-        await new Promise(resolve => setTimeout(resolve, 600));
+        console.error(`AI request error (${modelAktif}):`, error);
       }
     }
 
     return res.status(status).json({
       error: 'AI sedang sibuk. Coba kirim lagi.',
       provider_status: status,
-      provider_message: String(pesanError).slice(0, 300)
+      provider_message: String(pesanError).slice(0, 300),
+      models_tried: modelDicoba
     });
   } catch (error) {
     console.error('Server error:', error);
