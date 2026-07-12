@@ -56,7 +56,7 @@ sibantu/
 |------|-------|
 | `AI_API_KEY` | API key dari akun api.iamhc.cn |
 | `AI_MODEL` | `glm-4.7` |
-| `AI_ENDPOINT` | `https://api.iamhc.cn/v1/chat-completions` |
+| `AI_ENDPOINT` | `https://api.iamhc.cn/v1/chat/completions` |
 
 5. Klik **Save**
 6. Kembali ke tab **Deployments**
