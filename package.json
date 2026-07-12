@@ -1,0 +1,16 @@
+{
+  "name": "sibantu",
+  "version": "1.0.0",
+  "description": "SiBantu - Semua Urusan Jadi Mudah",
+  "main": "api/chat.js",
+  "scripts": {
+    "start": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
