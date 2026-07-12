@@ -564,8 +564,9 @@ Kamu harus merespons dalam format JSON seperti ini:
                         model: AI_MODEL,
                         messages: [
                             { role: 'system', content: buatPromptSistem() },
-                            ...dapatkanRiwayatChat(),
-                            { role: 'user', content: teksUser }
+                            // Pesan terbaru sudah ada di bubble/riwayat chat.
+                            // Jangan ditambahkan lagi agar AI tidak menerima pesan ganda.
+                            ...dapatkanRiwayatChat()
                         ]
                     })
                 });
