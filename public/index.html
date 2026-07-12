@@ -217,7 +217,7 @@
         <div class="chat-row">
             <div class="bubble bot">
                 <div class="status-box">
-                    🤖 <b>Mode AI Aktif</b> via Vercel
+                    🤖 <b>Chat Pasar v3.1 Aktif</b> • AI + Keranjang Aman
                 </div>
                 Halo! Saya <b>SiBantu</b> 🙏<br><br>
                 Saya bisa bantu Bu pesan bahan pokok harian. Kami antar ke <b>Desa Jembatan Dua</b> dan sekitarnya.<br>
@@ -869,12 +869,17 @@
             
             if (cocok.length === 1) {
                 const produk = cocok[0];
-                const benarMauBeli = ['mau ', 'beli ', 'pesan ', 'tambah ', 'minta ', 'ambil '].some(k => keyword.includes(k));
+                const tanyaHarga = ['harga', 'berapa'].some(k => keyword.includes(k));
+                const benarMauBeli = !tanyaHarga && ['mau ', 'beli ', 'pesan ', 'tambah ', 'minta ', 'ambil '].some(k => keyword.includes(k));
                 if (benarMauBeli) {
                     tambahKeKeranjang(produk.id);
                 } else {
-                    tambahBalasanBot(`${produk.emoji} <b>${produk.nama}</b> tersedia dengan harga ${formatRupiah(produk.harga)} per ${produk.unit}. Mau ditambahkan ke keranjang?`, `
-                        <button class="chip primary" onclick="tambahKeKeranjang(${produk.id})">➕ Tambahkan</button>
+                    const bedaUnit = /\b(kg|kilo)\b/.test(keyword) && !produk.unit.toLowerCase().includes('kg');
+                    const penjelasanUnit = bedaUnit
+                        ? `Saat ini kami menjualnya per <b>${produk.unit}</b>, belum per kilogram.`
+                        : `Satuannya <b>${produk.unit}</b>.`;
+                    tambahBalasanBot(`${produk.emoji} <b>${produk.nama}</b> harganya ${formatRupiah(produk.harga)} per ${produk.unit}. ${penjelasanUnit} Mau berapa?`, `
+                        <button class="chip primary" onclick="tambahKeKeranjang(${produk.id})">➕ Tambah 1</button>
                     `);
                 }
             } else if (cocok.length > 1) {
@@ -883,8 +888,12 @@
                     tombol += `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} ${p.nama}</button>`;
                 });
                 tambahBalasanBot('Maksudnya yang mana, Bu? Pilih ya:', tombol);
+            } else if (/\bikan\b/.test(keyword)) {
+                const ikan = produkData.filter(p => p.kategori === 'ikan');
+                const tombol = ikan.map(p => `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} ${p.nama} — ${formatRupiah(p.harga)}</button>`).join('');
+                tambahBalasanBot('Ada ikan nila, lele, tongkol, dan bandeng. Pilih yang diinginkan, ya:', tombol);
             } else {
-                tambahBalasanBot('Maaf, Bu. Saya belum ngerti maksudnya. Pilih dari menu aja ya:', `
+                tambahBalasanBot('Saya belum yakin maksudnya. Bisa tulis nama barang, jumlah, atau tanyakan harganya? Contoh: “harga ikan nila berapa?”', `
                     <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
                     <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
                     <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
