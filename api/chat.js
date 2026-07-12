@@ -53,8 +53,21 @@ module.exports = async (req, res) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI provider error:', response.status, errorText);
-      return res.status(response.status).json({ 
-        error: 'Gagal menghubungi AI provider. Cek API key dan endpoint.' 
+
+      // Tampilkan alasan aman dari provider agar masalah konfigurasi mudah dicek.
+      // API key tidak pernah ikut dikirim dalam respons ini.
+      let providerMessage = errorText;
+      try {
+        const parsedError = JSON.parse(errorText);
+        providerMessage = parsedError?.error?.message || parsedError?.message || errorText;
+      } catch (_) {
+        // Provider kadang mengirim error berupa teks biasa.
+      }
+
+      return res.status(response.status).json({
+        error: 'Gagal menghubungi AI provider.',
+        provider_status: response.status,
+        provider_message: String(providerMessage).slice(0, 500)
       });
     }
 
