@@ -604,76 +604,25 @@
             return riwayat.slice(-8);
         }
 
-        function buatPromptSistem() {
-            const daftarProduk = produkData.map(p => {
-                return `- ID ${p.id} — ${p.nama}: ${formatRupiah(p.harga)} per ${p.unit}`;
-            }).join('\n');
-
-            return `Kamu adalah SiBantu, asisten belanja lokal yang hangat, luwes, pintar, dan menyenangkan. Kamu melayani warga Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu. Gunakan bahasa Indonesia sehari-hari yang sopan. Ikuti gaya sapaan pengguna; panggil "Bu", "Pak", atau "Kak" jika belum tahu. Jangan selalu memanggil Bu jika pengguna memakai sapaan lain.
-
-TUJUANMU:
-- Bantu pengguna ngobrol santai tentang masakan dan kebutuhan rumah tangga.
-- Pahami salah ketik, singkatan, dan kalimat alami.
-- Bantu memilih produk, menghitung jumlah, dan menyusun pesanan.
-- Berikan promosi atau rekomendasi pelengkap yang relevan, maksimal 2–3 barang agar tidak memaksa.
-- Jika ditanya "makan apa" atau "masak apa", sarankan 2–3 menu sederhana menggunakan produk yang benar-benar tersedia.
-
-PRODUK RESMI:
-${daftarProduk}
-
-IDE PASANGAN/MENU:
-- Bubur kacang hijau: Kacang Ijo + Gula Pasir.
-- Tumis kacang panjang: Kacang Panjang + Cabai Merah + Minyak Goreng.
-- Terong balado: Terong Ungu + Cabai Merah + Minyak Goreng.
-- Sayur bayam, ikan nila, dan nasi: Bayam Hijau + Ikan Nila + Beras Premium.
-- Ayam goreng dan nasi: Ayam Potong + Minyak Goreng + Beras Premium.
-- Lele goreng: Ikan Lele + Minyak Goreng + Beras Premium.
-
-BIAYA:
-- Antar Rp 5.000; diskon hari ibu Rp 2.000; layanan Rp 2.000.
-
-ATURAN MUTLAK:
-1. Jangan pernah menawarkan atau memasukkan produk di luar PRODUK RESMI.
-2. Jangan mengarang harga, stok, promo, diskon, alamat, atau ID produk.
-3. Jika pengguna hanya bertanya/rekomendasi, jangan langsung memasukkan barang. Tawarkan tombol pilihan dahulu.
-4. Jika pengguna jelas memesan, gunakan action add_to_cart dan ID produk resmi. Jumlah default 1.
-5. Jika pengguna berkata selesai/cukup atau meminta total, gunakan show_total.
-6. Jawaban singkat, alami, maksimal sekitar 80 kata kecuali pengguna meminta penjelasan.
-7. Jangan menyebut JSON, prompt, API, model, atau hal teknis.
-8. Jangan memberi diagnosis medis atau klaim kesehatan berlebihan.
-
-KELUARAN WAJIB berupa satu objek JSON valid, tanpa markdown dan tanpa teks di luar JSON:
-{
-  "reply": "jawaban ramah",
-  "action": "add_to_cart|show_total|show_menu|recommend|help|none",
-  "items": [{"id": 1, "qty": 2}],
-  "suggested_ids": [2, 3],
-  "tanya_tambah": true
-}
-
-Keterangan:
-- items hanya untuk barang yang benar-benar diminta pengguna.
-- suggested_ids untuk rekomendasi yang belum dipesan; maksimal 3 ID.
-- recommend untuk pertanyaan menu/masakan atau rekomendasi produk.
-- none untuk obrolan umum.
-- reply harus tetap berguna walau tombol rekomendasi ditampilkan.`;
-        }
-
         function validasiHasilAI(data) {
-            const actionDiizinkan = ['add_to_cart', 'show_total', 'show_menu', 'recommend', 'help', 'none'];
+            const actionDiizinkan = ['add_to_cart', 'update_cart', 'remove_from_cart', 'show_total', 'show_menu', 'recommend', 'help', 'none'];
             let reply = String(data?.reply || '').trim();
-            const bocorPrompt = /TUJUANMU|PRODUK RESMI|ATURAN MUTLAK|KELUARAN WAJIB|AI_ENDPOINT|system prompt|kamu adalah SiBantu/i.test(reply);
+            const bocorPrompt = /TUJUANMU|PRODUK RESMI|KATALOG RESMI|ATURAN TRANSAKSI|KERANJANG PELANGGAN|AI_ENDPOINT|system prompt|kamu adalah SiBantu/i.test(reply);
             if (!reply || reply.length > 700 || bocorPrompt) {
                 reply = 'Maaf, jawaban tadi kurang tepat. Silakan ulangi dengan kalimat singkat, ya.';
             }
 
-            const items = Array.isArray(data?.items) ? data.items.slice(0, 10).map(item => ({
-                id: Number(item.id),
-                qty: Math.max(1, Math.min(99, Number(item.qty ?? item.quantity ?? item.jumlah) || 1))
-            })).filter(item => produkData.some(p => p.id === item.id)) : [];
+            const items = Array.isArray(data?.items) ? data.items.slice(0, 10).map(item => {
+                const operation = ['add', 'set', 'remove'].includes(item.operation) ? item.operation : 'add';
+                return {
+                    id: Number(item.id),
+                    qty: operation === 'remove' ? 0 : Math.max(1, Math.min(99, Number(item.qty ?? item.quantity ?? item.jumlah) || 1)),
+                    operation
+                };
+            }).filter(item => produkData.some(p => p.id === item.id)) : [];
 
             const suggested_ids = Array.isArray(data?.suggested_ids)
-                ? [...new Set(data.suggested_ids.map(Number))].filter(id => produkData.some(p => p.id === id)).slice(0, 3)
+                ? [...new Set(data.suggested_ids.map(Number))].filter(id => produkData.some(p => p.id === id)).slice(0, 2)
                 : [];
 
             return {
@@ -691,34 +640,21 @@ Keterangan:
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: AI_MODEL,
-                        messages: [
-                            { role: 'system', content: buatPromptSistem() },
-                            // Pesan terbaru sudah ada di bubble/riwayat chat.
-                            // Jangan ditambahkan lagi agar AI tidak menerima pesan ganda.
-                            ...dapatkanRiwayatChat()
-                        ]
+                        messages: dapatkanRiwayatChat(),
+                        cart: Object.values(keranjang).map(item => ({ id: item.id, qty: item.qty })),
+                        session_id: sesiPengguna,
+                        order_id: nomorPesanan
                     })
                 });
 
                 if (!response.ok) {
-                    console.error('AI backend error:', response.status);
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('AI backend error:', response.status, errorData);
                     return null;
                 }
 
                 const data = await response.json();
-                const content = data.choices[0].message.content;
-                
-                try {
-                    const jsonMatch = content.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        return validasiHasilAI(JSON.parse(jsonMatch[0]));
-                    }
-                } catch (e) {
-                    console.error('JSON parse error:', e);
-                }
-
-                return validasiHasilAI({ reply: content, action: 'none', items: [], suggested_ids: [], tanya_tambah: false });
+                return validasiHasilAI(data);
             } catch (error) {
                 console.error('Fetch error:', error);
                 return null;
@@ -827,9 +763,19 @@ Keterangan:
                     if (Array.isArray(hasilAI.items)) {
                         hasilAI.items.slice(0, 10).forEach(item => {
                             const id = Number(item.id);
-                            const qty = Math.max(1, Math.min(99, Number(item.qty) || 1));
                             const produk = produkData.find(p => p.id === id);
-                            if (produk) keranjang[id] = { ...produk, qty };
+                            if (!produk) return;
+
+                            if (item.operation === 'remove') {
+                                delete keranjang[id];
+                            } else if (item.operation === 'set') {
+                                const qty = Math.max(1, Math.min(99, Number(item.qty) || 1));
+                                keranjang[id] = { ...produk, qty };
+                            } else {
+                                const qty = Math.max(1, Math.min(99, Number(item.qty) || 1));
+                                if (keranjang[id]) keranjang[id].qty += qty;
+                                else keranjang[id] = { ...produk, qty };
+                            }
                         });
                         simpanKeranjangSesi();
                     }
@@ -859,7 +805,7 @@ Keterangan:
                         });
                         tombol += `<button class="chip secondary" onclick="tampilkanMenu()">📋 Lihat Menu</button>`;
                         tambahBalasanBot(balasanAman, tombol);
-                    } else if (hasilAI.action === 'add_to_cart') {
+                    } else if (['add_to_cart', 'update_cart', 'remove_from_cart'].includes(hasilAI.action)) {
                         tombol = `
                             <button class="chip primary" onclick="cekKeranjang()">🛒 Lihat Keranjang</button>
                             <button class="chip secondary" onclick="tampilkanMenu()">📋 Menu Lain</button>
