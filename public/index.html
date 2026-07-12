@@ -278,7 +278,70 @@
             'daging': [1, 13]
         };
 
-        let keranjang = {};
+        function buatIdUnik(prefix) {
+            const acak = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()
+                : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
+            return `${prefix}-${acak}`;
+        }
+
+        function ambilAtauBuatSesi() {
+            try {
+                let id = sessionStorage.getItem('sibantu_session_id');
+                if (!id) {
+                    id = buatIdUnik('SES');
+                    sessionStorage.setItem('sibantu_session_id', id);
+                }
+                return id;
+            } catch (_) {
+                return buatIdUnik('SES');
+            }
+        }
+
+        const sesiPengguna = ambilAtauBuatSesi();
+        const kunciKeranjang = `sibantu_cart_${sesiPengguna}`;
+        const kunciPesanan = `sibantu_order_${sesiPengguna}`;
+
+        function ambilNomorPesanan() {
+            try {
+                let nomor = sessionStorage.getItem(kunciPesanan);
+                if (!nomor) {
+                    nomor = buatIdUnik('SIB');
+                    sessionStorage.setItem(kunciPesanan, nomor);
+                }
+                return nomor;
+            } catch (_) {
+                return buatIdUnik('SIB');
+            }
+        }
+
+        const nomorPesanan = ambilNomorPesanan();
+
+        function muatKeranjangSesi() {
+            try {
+                const tersimpan = JSON.parse(sessionStorage.getItem(kunciKeranjang) || '{}');
+                const aman = {};
+                Object.entries(tersimpan).forEach(([id, item]) => {
+                    const produk = produkData.find(p => p.id === Number(id));
+                    const qty = Math.max(1, Math.min(99, Number(item?.qty) || 1));
+                    // Nama dan harga selalu dibangun ulang dari katalog resmi.
+                    if (produk) aman[produk.id] = { ...produk, qty };
+                });
+                return aman;
+            } catch (_) {
+                return {};
+            }
+        }
+
+        function simpanKeranjangSesi() {
+            try {
+                sessionStorage.setItem(kunciKeranjang, JSON.stringify(keranjang));
+            } catch (error) {
+                console.warn('Keranjang tidak dapat disimpan:', error);
+            }
+        }
+
+        let keranjang = muatKeranjangSesi();
         let sedangMemproses = false;
 
         function formatRupiah(angka) {
@@ -354,6 +417,7 @@
             } else {
                 keranjang[id].qty++;
             }
+            simpanKeranjangSesi();
             
             tambahBalasanUser(`${produk.emoji} ${produk.nama} ${produk.unit}`);
             
@@ -415,6 +479,16 @@
 
         function tampilkanTotalDanTombol(pesanTambahan = '') {
             const items = Object.values(keranjang);
+            if (items.length === 0) {
+                tambahBalasanBot('Keranjang masih kosong, jadi belum ada total yang perlu dihitung. Silakan pilih barang terlebih dahulu.', `
+                    <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
+                    <button class="chip" onclick="pilihKategori('ikan')">🐟 Ikan</button>
+                    <button class="chip" onclick="pilihKategori('buah')">🍎 Buah</button>
+                    <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
+                    <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
+                `);
+                return;
+            }
             const { subtotal, ongkir, diskon, layanan, total } = hitungTotal();
             
             let itemList = '';
@@ -425,6 +499,7 @@
             
             let teks = `${pesanTambahan ? pesanTambahan + '<br><br>' : ''}Ini rinciannya, Bu:<br><div class="cart-box">
                 <h4>🛒 Keranjang Belanja</h4>
+                <div style="font-size:11px;color:#795548;margin-bottom:7px;">No. pesanan: <b>${nomorPesanan}</b></div>
                 ${itemList}
                 <hr style="margin:8px 0;border:none;border-top:1px dashed #ffcc80;">
                 <div class="cart-item-line"><span>Subtotal</span><span>${formatRupiah(subtotal)}</span></div>
@@ -464,6 +539,7 @@
 
         function kosongkanKeranjang() {
             keranjang = {};
+            simpanKeranjangSesi();
             tambahBalasanUser('Hapus semua, Buk.');
             tunjukkanTyping(() => {
                 tambahBalasanBot('Oke, keranjang sudah dikosongkan. Mau beli apa lagi, Bu?', `
@@ -476,13 +552,24 @@
             });
         }
 
+        function mulaiPesananBaru() {
+            try {
+                sessionStorage.removeItem(kunciKeranjang);
+                sessionStorage.removeItem(kunciPesanan);
+                sessionStorage.removeItem('sibantu_session_id');
+            } catch (_) {}
+            location.reload();
+        }
+
         function checkout() {
             const items = Object.values(keranjang);
             if (items.length === 0) return;
             
             const { subtotal, ongkir, diskon, layanan, total } = hitungTotal();
             
-            let pesanan = '*Pesanan dari SiBantu*%0A%0A';
+            let pesanan = '*Pesanan dari SiBantu*%0A';
+            pesanan += `*No. Pesanan:* ${nomorPesanan}%0A`;
+            pesanan += `*ID Sesi:* ${sesiPengguna}%0A%0A`;
             pesanan += '*Alamat:* Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu%0A%0A';
             pesanan += '*Pesanan:*%0A';
             items.forEach(item => {
@@ -500,7 +587,7 @@
             
             tunjukkanTyping(() => {
                 tambahBalasanBot('Terima kasih sudah pesan di SiBantu, Bu! 🙏<br>Pesannya sudah kami kirim ke WhatsApp. Kami akan segera antar ya.', `
-                    <button class="chip" onclick="location.reload()">🔄 Pesan Lagi</button>
+                    <button class="chip" onclick="mulaiPesananBaru()">🔄 Buat Pesanan Baru</button>
                 `);
             });
         }
@@ -653,6 +740,9 @@ Keterangan:
 
         function pesananSudahCukup(teks) {
             const keyword = normalisasiTeks(teks);
+            if (['belum cukup', 'nggak cukup', 'tidak cukup', 'masih kurang'].some(kata => keyword.includes(kata))) {
+                return false;
+            }
             return ['cukup', 'sudah cukup', 'udah cukup', 'selesai', 'itu saja', 'itu aja', 'checkout', 'bayar sekarang']
                 .some(kata => keyword.includes(kata));
         }
@@ -689,6 +779,7 @@ Keterangan:
                 if (keranjang[produk.id]) keranjang[produk.id].qty += qty;
                 else keranjang[produk.id] = { ...produk, qty };
             });
+            simpanKeranjangSesi();
 
             const ringkasan = ditemukan.map(({ produk, qty }) => `${produk.emoji} <b>${produk.nama}</b> x${qty}`).join(', ');
 
@@ -716,11 +807,7 @@ Keterangan:
 
             // "Cukup" tidak perlu dikirim ke AI: tampilkan ringkasan yang dihitung aplikasi.
             if (pesananSudahCukup(teks)) {
-                if (Object.keys(keranjang).length > 0) {
-                    tampilkanTotalDanTombol('Baik, ini ringkasan akhir pesanan Anda. Silakan periksa sebelum dilanjutkan.');
-                } else {
-                    tambahBalasanBot('Keranjang masih kosong. Silakan pilih barang terlebih dahulu.');
-                }
+                tampilkanTotalDanTombol('Baik, ini ringkasan akhir pesanan Anda. Silakan periksa sebelum dilanjutkan.');
                 sedangMemproses = false;
                 return;
             }
@@ -744,6 +831,7 @@ Keterangan:
                             const produk = produkData.find(p => p.id === id);
                             if (produk) keranjang[id] = { ...produk, qty };
                         });
+                        simpanKeranjangSesi();
                     }
 
                     let tombol = '';
@@ -798,7 +886,7 @@ Keterangan:
             const isSelesai = kataSelesai.some(kata => keyword.includes(kata));
             
             if (isSelesai) {
-                cekKeranjang();
+                tampilkanTotalDanTombol('Baik, saya periksa keranjangnya dulu.');
                 return;
             }
             
@@ -813,6 +901,19 @@ Keterangan:
                 return;
             }
 
+            if (/\b(halo|hai|hi|pagi|siang|sore|malam)\b/.test(keyword)) {
+                tambahBalasanBot('Halo! Saya siap bantu belanja atau memberi rekomendasi menu. Mau cari apa hari ini?');
+                return;
+            }
+            if (['ongkir', 'biaya antar', 'antar ke mana', 'area antar'].some(k => keyword.includes(k))) {
+                tambahBalasanBot('Area antar saat ini Desa Jembatan Dua dan sekitarnya. Biaya antar Rp 5.000. Nanti lokasi rumah bisa dikirim saat konfirmasi pesanan.');
+                return;
+            }
+            if (['bayar', 'pembayaran', 'cash', 'tunai'].some(k => keyword.includes(k))) {
+                tambahBalasanBot('Untuk saat ini pembayaran dilakukan tunai saat barang diterima. Admin akan mengonfirmasi pesanan melalui WhatsApp.');
+                return;
+            }
+
             // Cari nama produk di dalam kalimat alami, bukan hanya kalimat yang sama persis.
             const cocok = produkData.filter(p => {
                 return keyword.includes(p.nama.toLowerCase()) ||
@@ -821,7 +922,15 @@ Keterangan:
             });
             
             if (cocok.length === 1) {
-                tambahKeKeranjang(cocok[0].id);
+                const produk = cocok[0];
+                const benarMauBeli = ['mau ', 'beli ', 'pesan ', 'tambah ', 'minta ', 'ambil '].some(k => keyword.includes(k));
+                if (benarMauBeli) {
+                    tambahKeKeranjang(produk.id);
+                } else {
+                    tambahBalasanBot(`${produk.emoji} <b>${produk.nama}</b> tersedia dengan harga ${formatRupiah(produk.harga)} per ${produk.unit}. Mau ditambahkan ke keranjang?`, `
+                        <button class="chip primary" onclick="tambahKeKeranjang(${produk.id})">➕ Tambahkan</button>
+                    `);
+                }
             } else if (cocok.length > 1) {
                 let tombol = '';
                 cocok.forEach(p => {
