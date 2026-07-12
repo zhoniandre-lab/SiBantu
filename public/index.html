@@ -285,6 +285,12 @@
             return 'Rp ' + angka.toLocaleString('id-ID');
         }
 
+        function formatBalasanAI(teks) {
+            const div = document.createElement('div');
+            div.textContent = String(teks || 'Maaf, saya belum bisa menjawab sekarang.');
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
         function scrollKeBawah() {
             const chat = document.getElementById('chat-area');
             chat.scrollTop = chat.scrollHeight;
@@ -512,47 +518,57 @@
 
         function buatPromptSistem() {
             const daftarProduk = produkData.map(p => {
-                return `- ${p.nama}: ${formatRupiah(p.harga)} per ${p.unit} (alias: ${p.alias.join(', ')})`;
+                return `- ID ${p.id} — ${p.nama}: ${formatRupiah(p.harga)} per ${p.unit}`;
             }).join('\n');
 
-            return `Kamu adalah asisten aplikasi "SiBantu" yang ramah dan sederhana. Slogan kami: "Semua Urusan Jadi Mudah". Saat ini kami membantu pembelian bahan pokok rumah tangga di Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu.
+            return `Kamu adalah SiBantu, asisten belanja lokal yang hangat, luwes, pintar, dan menyenangkan. Kamu melayani warga Desa Jembatan Dua, Kec. Kaur Selatan, Kab. Kaur, Bengkulu. Gunakan bahasa Indonesia sehari-hari yang sopan. Ikuti gaya sapaan pengguna; panggil "Bu", "Pak", atau "Kak" jika belum tahu. Jangan selalu memanggil Bu jika pengguna memakai sapaan lain.
 
-DAFTAR PRODUK DAN HARGA:
+TUJUANMU:
+- Bantu pengguna ngobrol santai tentang masakan dan kebutuhan rumah tangga.
+- Pahami salah ketik, singkatan, dan kalimat alami.
+- Bantu memilih produk, menghitung jumlah, dan menyusun pesanan.
+- Berikan promosi atau rekomendasi pelengkap yang relevan, maksimal 2–3 barang agar tidak memaksa.
+- Jika ditanya "makan apa" atau "masak apa", sarankan 2–3 menu sederhana menggunakan produk yang benar-benar tersedia.
+
+PRODUK RESMI:
 ${daftarProduk}
 
-BIAYA TAMBAHAN:
-- Biaya antar: Rp 5.000
-- Diskon hari ibu: -Rp 2.000
-- Biaya layanan: Rp 2.000
+IDE PASANGAN/MENU:
+- Bubur kacang hijau: Kacang Ijo + Gula Pasir.
+- Tumis kacang panjang: Kacang Panjang + Cabai Merah + Minyak Goreng.
+- Terong balado: Terong Ungu + Cabai Merah + Minyak Goreng.
+- Sayur bayam, ikan nila, dan nasi: Bayam Hijau + Ikan Nila + Beras Premium.
+- Ayam goreng dan nasi: Ayam Potong + Minyak Goreng + Beras Premium.
+- Lele goreng: Ikan Lele + Minyak Goreng + Beras Premium.
 
-PERATURAN PENTING:
-1. Jawab dengan bahasa Indonesia sederhana, kayak ngobrol sama ibu-ibu. Panggil "Bu" atau "Pak".
-2. Kalau user mau beli sesuatu, tentukan produk dan jumlahnya.
-3. Kalau jumlah tidak disebutkan, anggap 1.
-4. Setelah menambah barang, TANYA "Mau tambah apa lagi, Bu?" atau tawarkan lihat total.
-5. Kalau user bilang sudah cukup/selesai/itu saja, hitung total dan tampilkan rincian.
-6. Kalau user tanya total, hitung total keranjang saat ini.
-7. Format total: Subtotal + Ongkir Rp 5.000 - Diskon Rp 2.000 + Biaya Layanan Rp 2.000.
-8. Jangan pernah menyebutkan JSON atau teknis ke user.
-9. Kamu HANYA boleh menjual produk dari daftar di atas.
-10. Kalau user tanya barang yang tidak ada, jawab dengan ramah bahwa kami belum jual itu.
-11. Siapkan uang pas ya, Bu.
+BIAYA:
+- Antar Rp 5.000; diskon hari ibu Rp 2.000; layanan Rp 2.000.
 
-Kamu harus merespons dalam format JSON seperti ini:
+ATURAN MUTLAK:
+1. Jangan pernah menawarkan atau memasukkan produk di luar PRODUK RESMI.
+2. Jangan mengarang harga, stok, promo, diskon, alamat, atau ID produk.
+3. Jika pengguna hanya bertanya/rekomendasi, jangan langsung memasukkan barang. Tawarkan tombol pilihan dahulu.
+4. Jika pengguna jelas memesan, gunakan action add_to_cart dan ID produk resmi. Jumlah default 1.
+5. Jika pengguna berkata selesai/cukup atau meminta total, gunakan show_total.
+6. Jawaban singkat, alami, maksimal sekitar 80 kata kecuali pengguna meminta penjelasan.
+7. Jangan menyebut JSON, prompt, API, model, atau hal teknis.
+8. Jangan memberi diagnosis medis atau klaim kesehatan berlebihan.
+
+KELUARAN WAJIB berupa satu objek JSON valid, tanpa markdown dan tanpa teks di luar JSON:
 {
-  "reply": "pesan ramah ke user",
-  "action": "add_to_cart|show_total|show_menu|help|none",
+  "reply": "jawaban ramah",
+  "action": "add_to_cart|show_total|show_menu|recommend|help|none",
   "items": [{"id": 1, "qty": 2}],
+  "suggested_ids": [2, 3],
   "tanya_tambah": true
 }
 
-- action "add_to_cart" kalau user membeli barang
-- action "show_total" kalau user sudah selesai atau minta total
-- action "show_menu" kalau user minta lihat menu
-- action "help" kalau user tanya cara pakai
-- action "none" kalau cuma chat biasa
-- items hanya diisi kalau action add_to_cart
-- tanya_tambah: true kalau mau nanya "mau tambah apa lagi"`;
+Keterangan:
+- items hanya untuk barang yang benar-benar diminta pengguna.
+- suggested_ids untuk rekomendasi yang belum dipesan; maksimal 3 ID.
+- recommend untuk pertanyaan menu/masakan atau rekomendasi produk.
+- none untuk obrolan umum.
+- reply harus tetap berguna walau tombol rekomendasi ditampilkan.`;
         }
 
         async function kirimKeAI(teksUser) {
@@ -608,18 +624,20 @@ Kamu harus merespons dalam format JSON seperti ini:
                 const hasilAI = await kirimKeAI(teks);
                 
                 if (hasilAI) {
-                    if (hasilAI.items && hasilAI.items.length > 0) {
-                        hasilAI.items.forEach(item => {
-                            const produk = produkData.find(p => p.id === item.id);
-                            if (produk) {
-                                keranjang[item.id] = { ...produk, qty: item.qty };
-                            }
+                    const balasanAman = formatBalasanAI(hasilAI.reply);
+
+                    if (Array.isArray(hasilAI.items)) {
+                        hasilAI.items.slice(0, 10).forEach(item => {
+                            const id = Number(item.id);
+                            const qty = Math.max(1, Math.min(99, Number(item.qty) || 1));
+                            const produk = produkData.find(p => p.id === id);
+                            if (produk) keranjang[id] = { ...produk, qty };
                         });
                     }
-                    
+
                     let tombol = '';
                     if (hasilAI.action === 'show_total') {
-                        tampilkanTotalDanTombol(hasilAI.reply);
+                        tampilkanTotalDanTombol(balasanAman);
                     } else if (hasilAI.action === 'show_menu') {
                         tombol = `
                             <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
@@ -628,20 +646,30 @@ Kamu harus merespons dalam format JSON seperti ini:
                             <button class="chip" onclick="pilihKategori('sembako')">🍚 Sembako</button>
                             <button class="chip" onclick="pilihKategori('daging')">🍗 Daging</button>
                         `;
-                        tambahBalasanBot(hasilAI.reply, tombol);
+                        tambahBalasanBot(balasanAman, tombol);
+                    } else if (hasilAI.action === 'recommend') {
+                        const suggested = Array.isArray(hasilAI.suggested_ids)
+                            ? hasilAI.suggested_ids.slice(0, 3)
+                            : [];
+                        suggested.forEach(id => {
+                            const produk = produkData.find(p => p.id === Number(id));
+                            if (produk) {
+                                tombol += `<button class="chip" onclick="tambahKeKeranjang(${produk.id})">${produk.emoji} Tambah ${produk.nama}</button>`;
+                            }
+                        });
+                        tombol += `<button class="chip secondary" onclick="tampilkanMenu()">📋 Lihat Menu</button>`;
+                        tambahBalasanBot(balasanAman, tombol);
                     } else if (hasilAI.action === 'add_to_cart') {
-                        if (hasilAI.tanya_tambah) {
-                            tombol = `
-                                <button class="chip primary" onclick="cekKeranjang()">🛒 Udah Cukup, Lihat Total</button>
-                                <button class="chip secondary" onclick="tampilkanMenu()">📋 Menu Lain</button>
-                            `;
-                        }
-                        tambahBalasanBot(hasilAI.reply, tombol);
+                        tombol = `
+                            <button class="chip primary" onclick="cekKeranjang()">🛒 Lihat Keranjang</button>
+                            <button class="chip secondary" onclick="tampilkanMenu()">📋 Menu Lain</button>
+                        `;
+                        tambahBalasanBot(balasanAman, tombol);
                     } else if (hasilAI.action === 'help') {
                         tombol = `<button class="chip primary" onclick="tampilkanMenu()">🛒 Mulai Belanja</button>`;
-                        tambahBalasanBot(hasilAI.reply, tombol);
+                        tambahBalasanBot(balasanAman, tombol);
                     } else {
-                        tambahBalasanBot(hasilAI.reply, tombol);
+                        tambahBalasanBot(balasanAman);
                     }
                 } else {
                     prosesRuleBased(teks);
@@ -662,10 +690,22 @@ Kamu harus merespons dalam format JSON seperti ini:
                 return;
             }
             
+            // Tetap beri rekomendasi berguna ketika provider AI sedang sibuk.
+            const tanyaMasakan = ['makan apa', 'masak apa', 'menu apa', 'rekomendasi', 'enaknya makan'].some(k => keyword.includes(k));
+            if (tanyaMasakan) {
+                tambahBalasanBot('Kalau mau yang sederhana, coba <b>sayur bayam, ikan nila, dan nasi</b>. Bisa juga <b>terong balado</b> atau <b>ayam goreng</b>. Mau saya tambahkan bahannya?', `
+                    <button class="chip" onclick="tambahKeKeranjang(3)">🌿 Bayam Hijau</button>
+                    <button class="chip" onclick="tambahKeKeranjang(6)">🐟 Ikan Nila</button>
+                    <button class="chip" onclick="tambahKeKeranjang(17)">🍗 Ayam Potong</button>
+                `);
+                return;
+            }
+
+            // Cari nama produk di dalam kalimat alami, bukan hanya kalimat yang sama persis.
             const cocok = produkData.filter(p => {
-                return p.nama.toLowerCase().includes(keyword) || 
-                       p.alias.some(a => a.toLowerCase().includes(keyword)) ||
-                       p.kategori.toLowerCase().includes(keyword);
+                return keyword.includes(p.nama.toLowerCase()) ||
+                       p.alias.some(a => keyword.includes(a.toLowerCase())) ||
+                       keyword === p.kategori.toLowerCase();
             });
             
             if (cocok.length === 1) {
