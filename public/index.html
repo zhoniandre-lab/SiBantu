@@ -572,6 +572,32 @@ Keterangan:
 - reply harus tetap berguna walau tombol rekomendasi ditampilkan.`;
         }
 
+        function validasiHasilAI(data) {
+            const actionDiizinkan = ['add_to_cart', 'show_total', 'show_menu', 'recommend', 'help', 'none'];
+            let reply = String(data?.reply || '').trim();
+            const bocorPrompt = /TUJUANMU|PRODUK RESMI|ATURAN MUTLAK|KELUARAN WAJIB|AI_ENDPOINT|system prompt|kamu adalah SiBantu/i.test(reply);
+            if (!reply || reply.length > 700 || bocorPrompt) {
+                reply = 'Maaf, jawaban tadi kurang tepat. Silakan ulangi dengan kalimat singkat, ya.';
+            }
+
+            const items = Array.isArray(data?.items) ? data.items.slice(0, 10).map(item => ({
+                id: Number(item.id),
+                qty: Math.max(1, Math.min(99, Number(item.qty ?? item.quantity ?? item.jumlah) || 1))
+            })).filter(item => produkData.some(p => p.id === item.id)) : [];
+
+            const suggested_ids = Array.isArray(data?.suggested_ids)
+                ? [...new Set(data.suggested_ids.map(Number))].filter(id => produkData.some(p => p.id === id)).slice(0, 3)
+                : [];
+
+            return {
+                reply,
+                action: actionDiizinkan.includes(data?.action) ? data.action : 'none',
+                items,
+                suggested_ids,
+                tanya_tambah: Boolean(data?.tanya_tambah)
+            };
+        }
+
         async function kirimKeAI(teksUser) {
             try {
                 const response = await fetch('/api/chat', {
@@ -599,17 +625,36 @@ Keterangan:
                 try {
                     const jsonMatch = content.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                        return JSON.parse(jsonMatch[0]);
+                        return validasiHasilAI(JSON.parse(jsonMatch[0]));
                     }
                 } catch (e) {
                     console.error('JSON parse error:', e);
                 }
-                
-                return { reply: content, action: 'none', items: [], tanya_tambah: false };
+
+                return validasiHasilAI({ reply: content, action: 'none', items: [], suggested_ids: [], tanya_tambah: false });
             } catch (error) {
                 console.error('Fetch error:', error);
                 return null;
             }
+        }
+
+        function normalisasiTeks(teks) {
+            return String(teks || '')
+                .toLowerCase()
+                .replace(/\b(ckup|cukub|cukuup)\b/g, 'cukup')
+                .replace(/\b(gireng|gorng|gpreng)\b/g, 'goreng')
+                .replace(/\b(ikam|ikn)\b/g, 'ikan')
+                .replace(/\b(bl[iy]|bell?i)\b/g, 'beli')
+                .replace(/\b(pesen|psan)\b/g, 'pesan')
+                .replace(/\b(gk|ga|ngga|ngak)\b/g, 'nggak')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function pesananSudahCukup(teks) {
+            const keyword = normalisasiTeks(teks);
+            return ['cukup', 'sudah cukup', 'udah cukup', 'selesai', 'itu saja', 'itu aja', 'checkout', 'bayar sekarang']
+                .some(kata => keyword.includes(kata));
         }
 
         function bacaJumlahCepat(teks, alias) {
@@ -624,9 +669,11 @@ Keterangan:
         }
 
         function prosesPesananCepat(teks) {
-            const keyword = teks.toLowerCase();
-            const intentBeli = ['mau beli', 'mau pesan', 'pesan ', 'beli ', 'tambah ', 'masukkan'].some(k => keyword.includes(k));
-            const intentTanya = ['ada nggak', 'ada gak', 'berapa harga', 'masak', 'makan apa', 'rekomendasi'].some(k => keyword.includes(k));
+            const keyword = normalisasiTeks(teks);
+            const intentBeli = ['mau ', 'mau beli', 'mau pesan', 'pesan ', 'beli ', 'tambah ', 'masukkan', 'minta ', 'ambil ']
+                .some(k => keyword.includes(k));
+            const intentTanya = ['ada nggak', 'berapa harga', 'masak', 'makan apa', 'rekomendasi']
+                .some(k => keyword.includes(k));
             if (!intentBeli || intentTanya) return false;
 
             const ditemukan = [];
@@ -644,6 +691,12 @@ Keterangan:
             });
 
             const ringkasan = ditemukan.map(({ produk, qty }) => `${produk.emoji} <b>${produk.nama}</b> x${qty}`).join(', ');
+
+            if (['total', 'berapa semua', 'berapa keseluruhan'].some(k => keyword.includes(k))) {
+                tampilkanTotalDanTombol(`Siap, ${ringkasan} sudah ditambahkan.`);
+                return true;
+            }
+
             const kategori = ditemukan[0].produk.kategori;
             const rekomendasi = produkData.filter(p => (rekomendasiMap[kategori] || []).includes(p.id)).slice(0, 2);
             let tombol = rekomendasi.map(p => `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} Tambah ${p.nama}</button>`).join('');
@@ -660,6 +713,17 @@ Keterangan:
             sedangMemproses = true;
             input.value = '';
             tambahBalasanUser(teks);
+
+            // "Cukup" tidak perlu dikirim ke AI: tampilkan ringkasan yang dihitung aplikasi.
+            if (pesananSudahCukup(teks)) {
+                if (Object.keys(keranjang).length > 0) {
+                    tampilkanTotalDanTombol('Baik, ini ringkasan akhir pesanan Anda. Silakan periksa sebelum dilanjutkan.');
+                } else {
+                    tambahBalasanBot('Keranjang masih kosong. Silakan pilih barang terlebih dahulu.');
+                }
+                sedangMemproses = false;
+                return;
+            }
 
             // Pesanan yang jelas diproses lokal seketika; AI dipakai untuk obrolan kompleks.
             if (prosesPesananCepat(teks)) {
@@ -684,7 +748,8 @@ Keterangan:
 
                     let tombol = '';
                     if (hasilAI.action === 'show_total') {
-                        tampilkanTotalDanTombol(balasanAman);
+                        // Total selalu dihitung dari data keranjang lokal, bukan angka buatan AI.
+                        tampilkanTotalDanTombol('Baik, ini total berdasarkan barang yang benar-benar ada di keranjang.');
                     } else if (hasilAI.action === 'show_menu') {
                         tombol = `
                             <button class="chip" onclick="pilihKategori('sayur')">🥬 Sayur</button>
@@ -727,9 +792,9 @@ Keterangan:
         }
 
         function prosesRuleBased(teks) {
-            const keyword = teks.toLowerCase();
+            const keyword = normalisasiTeks(teks);
             
-            const kataSelesai = ['udh', 'udah', 'sudah', 'cukup', 'selesai', 'itu saja', 'itu aja', 'itu doang', 'cukup sekian', 'ga usah', 'gak usah', 'nggak usah', 'tidak', 'nggak', 'gak', 'tidak usah'];
+            const kataSelesai = ['udah cukup', 'sudah cukup', 'cukup', 'selesai', 'itu saja', 'itu aja', 'itu doang', 'cukup sekian', 'nggak usah', 'tidak usah'];
             const isSelesai = kataSelesai.some(kata => keyword.includes(kata));
             
             if (isSelesai) {
