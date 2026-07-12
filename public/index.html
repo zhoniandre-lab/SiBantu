@@ -513,7 +513,8 @@
                 const peran = b.classList.contains('user') ? 'user' : 'assistant';
                 riwayat.push({ role: peran, content: b.innerText.trim() });
             });
-            return riwayat;
+            // Riwayat pendek membuat respons AI lebih cepat dan tetap relevan.
+            return riwayat.slice(-8);
         }
 
         function buatPromptSistem() {
@@ -611,6 +612,46 @@ Keterangan:
             }
         }
 
+        function bacaJumlahCepat(teks, alias) {
+            const angkaKata = { satu: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10 };
+            const posisi = teks.indexOf(alias);
+            if (posisi < 0) return 1;
+            const sekitar = teks.slice(Math.max(0, posisi - 14), posisi + alias.length + 18);
+            const cocok = sekitar.match(/\b(\d+|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh)\b/i);
+            if (!cocok) return 1;
+            const jumlah = /^\d+$/.test(cocok[1]) ? Number(cocok[1]) : angkaKata[cocok[1].toLowerCase()];
+            return Math.max(1, Math.min(99, jumlah || 1));
+        }
+
+        function prosesPesananCepat(teks) {
+            const keyword = teks.toLowerCase();
+            const intentBeli = ['mau beli', 'mau pesan', 'pesan ', 'beli ', 'tambah ', 'masukkan'].some(k => keyword.includes(k));
+            const intentTanya = ['ada nggak', 'ada gak', 'berapa harga', 'masak', 'makan apa', 'rekomendasi'].some(k => keyword.includes(k));
+            if (!intentBeli || intentTanya) return false;
+
+            const ditemukan = [];
+            produkData.forEach(produk => {
+                const alias = [produk.nama.toLowerCase(), ...produk.alias.map(a => a.toLowerCase())]
+                    .sort((a, b) => b.length - a.length)
+                    .find(a => keyword.includes(a));
+                if (alias) ditemukan.push({ produk, qty: bacaJumlahCepat(keyword, alias) });
+            });
+            if (ditemukan.length === 0) return false;
+
+            ditemukan.forEach(({ produk, qty }) => {
+                if (keranjang[produk.id]) keranjang[produk.id].qty += qty;
+                else keranjang[produk.id] = { ...produk, qty };
+            });
+
+            const ringkasan = ditemukan.map(({ produk, qty }) => `${produk.emoji} <b>${produk.nama}</b> x${qty}`).join(', ');
+            const kategori = ditemukan[0].produk.kategori;
+            const rekomendasi = produkData.filter(p => (rekomendasiMap[kategori] || []).includes(p.id)).slice(0, 2);
+            let tombol = rekomendasi.map(p => `<button class="chip" onclick="tambahKeKeranjang(${p.id})">${p.emoji} Tambah ${p.nama}</button>`).join('');
+            tombol += `<button class="chip primary" onclick="cekKeranjang()">🛒 Lihat Keranjang</button>`;
+            tambahBalasanBot(`Siap! ${ringkasan} sudah masuk keranjang. Mau sekalian tambah pelengkapnya?`, tombol);
+            return true;
+        }
+
         async function kirimPesanManual() {
             const input = document.getElementById('pesan-user');
             const teks = input.value.trim();
@@ -619,6 +660,12 @@ Keterangan:
             sedangMemproses = true;
             input.value = '';
             tambahBalasanUser(teks);
+
+            // Pesanan yang jelas diproses lokal seketika; AI dipakai untuk obrolan kompleks.
+            if (prosesPesananCepat(teks)) {
+                sedangMemproses = false;
+                return;
+            }
             
             tunjukkanTyping(async () => {
                 const hasilAI = await kirimKeAI(teks);
